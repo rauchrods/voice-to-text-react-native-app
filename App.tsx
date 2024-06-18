@@ -1,118 +1,180 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
   View,
+  Text,
+  Button,
+  ScrollView,
+  SafeAreaView,
+  StyleSheet,
+  Dimensions,
+  TouchableOpacity,
 } from 'react-native';
+import Voice, {SpeechResultsEvent} from '@react-native-voice/voice';
+const fillerWords = [
+  'um',
+  'uh',
+  'like',
+  'you know',
+  'well',
+  'actually',
+  'basically',
+  'literally',
+  'I mean',
+  'sort of',
+  'kind of',
+  'right?',
+  'okay',
+  'so',
+  'just',
+  'really',
+  'totally',
+  'oh',
+  'ah',
+  'hmm',
+  'hm',
+  'ahem',
+  'er',
+  'ahh',
+  'uhh',
+  'huh',
+];
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const windowHeight = Dimensions.get('window').height;
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+const App = (): React.JSX.Element => {
+  console.log(windowHeight);
+  const [text, setText] = useState<string>('');
+  const [fillerWordCount, setFillerWordCount] = useState<number>(0);
+  const [isListening, setIsListening] = useState<boolean>(false);
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+  useEffect(() => {
+    Voice.onSpeechPartialResults = onSpeechPartialResults;
+    Voice.onSpeechEnd = onSpeechEnd;
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
+  }, []);
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  const onSpeechPartialResults = (e: SpeechResultsEvent) => {
+    console.log(e);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+    const displayTest = e.value ? e.value.join(' ') : '';
+    setText(displayTest);
+    countFillerWords(displayTest);
+  };
+
+  const onSpeechEnd = () => {
+    setIsListening(false);
+  };
+
+  const countFillerWords = (displayTest: string) => {
+    // Implement your filler word counting logic here
+
+    const words = displayTest.split(' ');
+    const count = words.filter((word: string) =>
+      fillerWords.includes(word.toLowerCase()),
+    );
+    setFillerWordCount(count.length);
+  };
+
+  const startListening = async () => {
+    try {
+      setText('');
+      await Voice.start('en-US');
+
+      setIsListening(true);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const stopListening = async () => {
+    try {
+      await Voice.stop();
+      setIsListening(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
+    <SafeAreaView style={styles.mainContainer}>
+      {text && (
+        <ScrollView
+          style={[styles.textViewContainer, {height: windowHeight * 0.6}]}>
+          <View style={styles.viewTest}>
+            {text.split(' ').map(word => (
+              <Text
+                style={[
+                  styles.textView,
+                  {
+                    color: fillerWords.includes(word.toLowerCase())
+                      ? 'red'
+                      : 'white',
+                  },
+                ]}>
+                {word}
+              </Text>
+            ))}
+          </View>
+        </ScrollView>
+      )}
+
+      <Text style={[styles.textView, {paddingVertical: 10}]}>
+        Filler Words Count: {fillerWordCount}
+      </Text>
+      <TouchableOpacity
+        style={[
+          styles.button,
+          {backgroundColor: isListening ? 'red' : 'green'},
+        ]}
+        onPress={isListening ? stopListening : startListening}>
+        <Text style={styles.buttonText}>
+          {isListening ? 'Stop Listening' : 'Start Listening'}
+        </Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+};
 
 export default App;
+
+const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 14,
+  },
+
+  textViewContainer: {
+    borderWidth: 1,
+    borderColor: 'white',
+    borderRadius: 12,
+    padding: 10,
+    width: '100%',
+    flexDirection: 'column',
+  },
+
+  viewTest: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+
+  textView: {
+    fontSize: 20,
+    fontWeight: 'medium',
+  },
+
+  button: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+  },
+
+  buttonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});
